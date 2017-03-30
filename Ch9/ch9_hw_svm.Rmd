@@ -1,0 +1,118 @@
+---
+title: "ch9_hm_svm"
+author: "Andrey Glushko"
+date: "13 March 2016"
+output: html_document
+---
+
+In this problem, you will use simulation to evaluate (by Monte Carlo) the expected misclassification error rate given a particular generating model. Let yi be equally divided between classes 0 and 1, and let xi is R^10 be normally distributed.
+
+Preparing train data:
+
+```{r}
+library(MASS)
+set.seed(10111)
+
+gen1.sample = function(n1,n2){
+  top = matrix(rnorm(500), ncol = 10)
+  bl = matrix(rnorm(250,mean = 1),ncol=5)
+  br = matrix(rnorm(250),ncol=5)
+  bottom = cbind(bl,br)
+  full = rbind(top,bottom)
+  full = as.data.frame(full)
+  full$y = as.factor(rep(0:1, each=50))
+  return(full)
+}
+
+gen.sample=function(n1, n2) {
+  x1=mvrnorm(n=n1, mu=rep(0,10), Sigma=diag(10))
+  x2=mvrnorm(n=n2, mu=rep(c(1,0),c(5,5)), Sigma=diag(10))
+  x=rbind(x1,x2);
+  x=matrix(x, nrow=100, ncol=10)
+  y=rep(c(0,1), c(n1,n2))
+  y=matrix(y,n1+n2,1)
+  sample=data.frame(x,y=as.factor(y))
+  return(sample)
+}
+
+train.dat=gen1.sample(50, 50)
+
+#x1=mvrnorm(50, mu=rep(0,10), Sigma=diag(10))
+#x2=mvrnorm(50, mu=c(1,1,1,1,1,0,0,0,0,0), Sigma=diag(10))
+#x=rbind(x1,x2);
+#dim(x)
+#x=matrix(x, nrow=100, ncol=10)
+#dim(x)
+#xt = x[51:100,4]
+#hist(xt)
+#mean(xt)
+
+#y=rep(c(0,1), c(50,50))
+#y=matrix(y,100,1)
+#train.data=data.frame(x,y)
+#train.dat=data.frame(x,y=as.factor(y))
+```
+
+Train SVM using train data:
+```{r}
+library(e1071)
+
+num_it = 100;
+svm.error=rep(0,num_it)
+
+for(i in 1:num_it) {
+  # train
+  train.dat=gen.sample(50, 50)
+  svmfit=svm(train.dat$y~., data=train.dat)
+  
+  # test
+  test.dat=gen.sample(100, 100)
+#  test.dat=gen.sample(50, 50)
+  svmpred = predict(svmfit, test.dat)
+  
+  # test error
+#  svm.error[i] = (sum(svmpred != test.dat$y)) / length(test.dat$y)  
+  svm.error[i] = mean(svmpred != test.dat$y)
+}
+
+# average error:
+err = sum(svm.error) / length(svm.error)
+err
+
+
+# svm + cv:
+#train.dat=gen.sample(50, 50)
+#svmfit=svm(train.dat$y~., data=train.dat)
+#tune.out = tune(svm, y~., data=train.dat)
+#summary(tune.out)
+```
+
+Train SVM using kernel="linear" train data:
+```{r}
+svm.error=rep(0,num_it)
+
+for(i in 1:num_it) {
+  # train
+  train.dat=gen.sample(50, 50)
+  svmfit=svm(train.dat$y~.,kernel="linear",data=train.dat)
+  
+  # test
+  test.dat=gen.sample(100, 100)
+  svmpred = predict(svmfit, test.dat)
+  
+  # test error
+  svm.error[i] = mean(svmpred != test.dat$y)
+}
+
+# average error:
+err = sum(svm.error) / length(svm.error)
+err
+```
+
+You can also embed plots, for example:
+
+```{r, echo=FALSE}
+plot(cars)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

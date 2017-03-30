@@ -1,0 +1,146 @@
+---
+title: "ch9_hm_svm"
+author: "Andrey Glushko"
+date: "13 March 2016"
+output: html_document
+---
+
+In this problem, you will use simulation to evaluate (by Monte Carlo) the expected misclassification error rate given a particular generating model. Let yi be equally divided between classes 0 and 1, and let xi is R^10 be normally distributed.
+
+Preparing train data:
+
+```{r}
+library(MASS)
+set.seed(10111)
+
+gen.sample=function(n1, n2) {
+  x1=mvrnorm(n1, rep(0,10), diag(10))
+  x2=mvrnorm(n2, rep(c(1,0),c(5,5)), diag(10))
+  x=rbind(x1,x2);
+  y=rep(c(0,1), c(n1,n2))
+  sample=data.frame(x,y=as.factor(y))
+  return(sample)
+}
+```
+
+Train SVM using radial kernel:
+```{r}
+library(e1071)
+
+# generate test data:
+test.data=gen.sample(500, 500)
+
+# test svm with default kernel:
+train.data = gen.sample(50, 50)
+svmr.fit=svm(train.data$y~., data=train.data)
+summary(svmr.fit)
+svmr.pred1 = predict(svmr.fit, test.data)
+terr1 = mean(svmr.pred1 != test.data$y)
+terr1[1]
+
+num_it = 1000;
+
+svm.error1 <- c();
+
+for(i in 1:num_it) {
+  # generate train data:
+  train.data = gen.sample(50, 50)
+
+  # generate test data:
+  test1.data=gen.sample(500, 500)
+
+  # Fit a model on traning data:
+  svmfit=svm(train.data$y~., data=train.data)
+  
+  # predict on test data:
+  svmpred1 = predict(svmfit, test1.data)
+  
+  # test error
+  err = mean(svmpred1 != test1.data$y)
+  svm.error1 <- c(svm.error1, err)
+}
+
+# average error:
+err1 = mean(svm.error1)
+err1[1]
+# 0.161665
+```
+
+Train SVM using kernel="linear":
+```{r}
+set.seed(10111)
+
+# test svm with linear kernel:
+train.data = gen.sample(50, 50)
+svml.fit=svm(train.data$y~., data=train.data, kernel="linear")
+svml.pred2 = predict(svml.fit, test.data)
+terr2 = mean(svml.pred2 != test.data$y)
+terr2[1]
+
+svm.error2 <- c();
+
+for(i in 1:num_it) {
+  # generate train data:
+  train.data = gen.sample(50, 50)
+  
+  # generate test data:
+  test1.data=gen.sample(500, 500)
+  
+  # Fit a model on traning data:
+  svmfit=svm(train.data$y~., data=train.data, kernel="linear")
+  
+  # predict on test data:
+  svmpred2 = predict(svmfit, test1.data)
+  
+  # test error:
+  err = mean(svmpred2 != test1.data$y)
+  svm.error2 <- c(svm.error2, err)
+}
+
+# average error:
+err2 = mean(svm.error2)
+err2[1]
+# 0.159739
+```
+
+Train logistic regression:
+```{r}
+set.seed(10111)
+
+missClass <- function(values, prediction) {
+    sum(((prediction > 0.5)*1) != values)/length(values)
+  }
+
+# test glm:
+train.data = gen.sample(50, 50)
+log.fit = glm(train.data$y ~., family=binomial, data=train.data)
+summary(log.fit)
+log.prob <- predict(log.fit, newdata=test.data, type="response")
+terr3 = missClass(test.data$y,log.prob)
+terr3[1]
+
+svm.error3 <- c();
+
+for(i in 1:num_it) {
+  # generate train data:
+  train.data = gen.sample(50, 50)
+  
+  # generate test data:
+  test1.data=gen.sample(500, 500)
+  
+  # Fit a model on traning data:
+  glm.fit = glm(train.data$y ~., family=binomial, data=train.data)
+  
+  # predict on test data
+  glm.prob <- predict(glm.fit, newdata=test1.data, type="response")
+
+  # test error
+  err = missClass(test1.data$y,glm.prob)
+  svm.error3 <- c(svm.error3, err)
+}
+
+# average error:
+err3 = mean(svm.error3)
+err3[1]
+# 0.159639
+```

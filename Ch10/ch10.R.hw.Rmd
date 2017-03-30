@@ -1,0 +1,64 @@
+---
+title: "10.R.HW"
+author: "Andrey Glushko"
+date: "20 March 2016"
+output: html_document
+---
+
+```{r}
+rm(list = ls())
+load("~/Documents/Courses/Statistical Learning/Ch10/10.R.RData")
+```
+
+Q.1
+Suppose we want to fit a linear regression, but the number of variables is much larger than the number of observations. In some cases, we may improve the fit by reducing the dimension of the features before.
+
+In this problem, we use a data set with n = 300 and p = 200, so we have more observations than variables, but not by much. Load the data x, y, x.test, and y.test from 10.R.RData.
+
+First, concatenate x and x.test using the rbind functions and perform a principal components analysis on the concatenated data frame (use the "scale=TRUE" option). To within 10% relative error, what proportion of the variance is explained by the first five principal components?
+
+```{r}
+sample1=rbind(x,x.test);
+pca.out=prcomp(sample1, scale=TRUE)
+pca.out$sdev
+screeplot(pca.out) # the variances against the number of principal component
+pve = (pca.out$sdev)^2 / sum(pca.out$sdev^2) # PVE
+cum_pve5 = sum(pve[1:5]) # cumulative PVE for first 5 principal components
+cum_pve5[1] # 0.3498565 is cumulative PVE for first 5 principal components
+# or another way to compute cumulative PVE via cumsum is:
+cum_pve = cumsum(pca.out$sdev^2) / sum(pca.out$sdev^2)
+cum_pve[5] # the same 0.3498565
+
+#names(pca.out)
+#biplot(pca.out, scale=0, cex=0.6)
+```
+
+Q.2
+The previous answer suggests that a relatively small number of "latent variables" account for a substantial fraction of the features' variability. We might believe that these latent variables are more important than linear combinations of the features that have low variance.
+
+We can try forgetting about the raw features and using the first five principal components (computed on rbind(x,x.test)) instead as low-dimensional derived features. What is the mean-squared test error if we regress y on the first five principal components, and use the resulting model to predict y.test?
+
+```{r}
+# linear operator to transform to PCA space, first 5 principal components are used:
+proj.z = pca.out$rotation[, 1:5]
+#z.train = pca.out$x[1:300, 1:5]
+
+# train linear regression:
+#lm.fit = lm(y~z.train)
+lm.fit = lm(y ~ PC1+PC2+PC3+PC4+PC5, as.data.frame(pca.out$x[1:300,]))
+summary(lm.fit)
+
+# standartize x.test using pca mean & st.dev:
+x.std.test <- sweep(x.test, 1, pca.out$center, "-")
+x.std.test <- sweep(x.std.test, 1, pca.out$sdev, "/")
+
+# project x.std.test to pca space with first 5 principal components
+z.test <- as.matrix(x.std.test) %*% proj.z
+z.test <- as.data.frame(z.test)
+
+# predict response:
+lm.pred = predict(lm.fit, z.test)
+RSE = sqrt( mean( (y.test-lm.pred)^2, na.rm = TRUE) )
+RSE[1] # 1.122406
+```
+
